@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmção de Aura</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #111;
+    font-family: Arial, sans-serif;
+    user-select: none;
+  }
+
+  #bg-gif {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* ------- SCORE E RECORDE ------- */
+  #score, #highscore {
+    position: absolute;
+    left: 10px;
+    font-weight: bold;
+    z-index: 10;
+  }
+
+  #score {
+    top: 10px;
+    font-size: 25px;
+    color: #0ff;
+    text-shadow: 0 0 10px #0ff;
+  }
+
+  #highscore {
+    top: 55px; 
+    font-size: 20px;
+    color: #ffd700;
+    text-shadow: 0 0 15px #ffea00;
+  }
+
+  #gameover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 52px;
+    font-weight: bold;
+    color: red;
+    text-shadow: 0 0 15px red;
+    display: none;
+    z-index: 50;
+  }
+
+  /* ------- ABA INFERIOR ------- */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 80px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px;
+    box-sizing: border-box;
+    z-index: 20;
+  }
+
+  .btn-restart, .btn-voltar {
+    padding: 12px 22px;
+    background: transparent;
+    border: 2px solid;
+    font-size: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .btn-restart {
+    border-color: #00ffea;
+    color: #00ffea;
+    text-shadow: 0 0 10px #00faff;
+    box-shadow: 0 0 15px #00faff;
+  }
+  .btn-restart:hover {
+    box-shadow: 0 0 25px #00faff;
+    transform: scale(1.05);
+  }
+
+  .btn-voltar {
+    border-color: #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00;
+    box-shadow: 0 0 15px #00ff00;
+  }
+  .btn-voltar:hover {
+    box-shadow: 0 0 25px #00ff00;
+    transform: scale(1.05);
+  }
+
+  /* -------- BOLAS -------- */
+  .ball, .ball-ego, .ball-morte {
+    position: absolute;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 5;
+  }
+
+  .ball {
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, #fff, #aaa);
+    box-shadow: 0 0 20px white;
+  }
+
+  .ball-ego {
+    width: 85px;
+    height: 85px;
+    background: radial-gradient(circle, #b300ff, #5a0096);
+    box-shadow: 0 0 25px #b300ff, 0 0 50px #b300ff;
+  }
+
+  .ball-morte {
+    width: 85px;
+    height: 85px;
+    background: radial-gradient(circle, #ff0000, #7a0000);
+    box-shadow: 0 0 25px red, 0 0 50px red;
+  }
+</style>
+
+</head>
+
+<body>
+
+<img id="bg-gif" src="Picol.gif">
+
+<div id="score">+0Aura</div>
+<div id="highscore">Recorde: 0</div>
+
+<div id="gameover">Você foi Mogado</div>
+
+<!-- ABA INFERIOR -->
+<div id="bottom-bar">
+  <button class="btn-restart" onclick="reiniciar()">Reiniciar</button>
+  <button class="btn-voltar" onclick="voltar()">Voltar</button>
+</div>
+
+<script>
+  let score = 0;
+  let highscore = Number(localStorage.getItem("highscore")) || 0;
+  let gameOver = false;
+
+  let egoMode = false;
+  let egoSuperior = false;
+  let egoCount = 0;
+
+  let spawnSpeed = 1850;
+  const spawnAcceleration = 0.98;
+
+  const clickSound = new Audio("bub.mp3");
+
+  // MOSTRAR RECORDE CORRETO
+  document.getElementById("highscore").innerText = "Recorde: " + highscore;
+
+  function updateHighscore() {
+    if (score > highscore) {
+      highscore = score;
+      localStorage.setItem("highscore", highscore);
+      document.getElementById("highscore").innerText = "Recorde: " + highscore;
+    }
+  }
+
+  function updateScore() {
+    const s = document.getElementById("score");
+
+    updateHighscore();
+
+    if (score < 0) {
+      s.style.color = "red";
+      s.style.textShadow = "0 0 10px red, 0 0 20px #ff4d4d";
+      s.innerText = score + "Aura";
+      if (score <= -100 && !gameOver) triggerGameOver();
+      return;
+    }
+
+    if (score >= 1000000) {
+      const msg = document.getElementById("gameover");
+      msg.innerText = "AURA DEFINITIVA";
+      msg.style.color = "#ffd700";
+      msg.style.textShadow = "0 0 20px gold, 0 0 40px yellow";
+      msg.style.display = "block";
+
+      gameOver = true;
+      s.style.color = "#ffd700";
+      s.style.textShadow = "0 0 25px gold";
+      s.innerText = "+1.000.000Aura Definitiva";
+      return;
+    }
+
+    let auraNome = "";
+    let cor = "";
+    let brilho = "";
+
+    if (score >= 195000) {
+      auraNome = "Aura Absoluta";
+      cor = "#ffd700";
+      brilho = "0 0 20px gold";
+    }
+    else if (score >= 180000) {
+      auraNome = "Aura Divina";
+      cor = "#ffd700";
+      brilho = "0 0 25px #fff000";
+    }
+    else if (score >= 165000) {
+      auraNome = "Aura Suprema";
+      cor = "red";
+      brilho = "0 0 20px red";
+    }
+    else if (score >= 150000) {
+      auraNome = "Aura Titânica";
+      cor = "orange";
+      brilho = "0 0 20px orange";
+    }
+    else if (score >= 140000) {
+      auraNome = "Aura Descomunal";
+      cor = "#0011aa";
+      brilho = "0 0 25px #0044ff";
+    }
+    else if (score >= 130000) {
+      auraNome = "Aura Colossal";
+      cor = "#8000ff";
+      brilho = "0 0 25px #a200ff";
+    }
+    else if (score >= 120000) {
+      auraNome = "Aura Mítica";
+      cor = "#d9d9d9";
+      brilho = "0 0 25px white";
+    }
+    else if (score >= 110000) {
+      auraNome = "Aura Lendária";
+      cor = "#ff66cc";
+      brilho = "0 0 25px #ff99dd";
+    }
+    else if (score >= 100000) {
+      auraNome = "Aura Extrema";
+      cor = "#66ccff";
+      brilho = "0 0 25px #99ddff";
+    }
+    else if (score >= 50000) {
+      auraNome = "Aura Máxima";
+      cor = "red";
+      brilho = "0 0 20px red";
+    }
+    else if (score >= 20000) {
+      auraNome = "Aura Superior";
+      cor = "yellow";
+      brilho = "0 0 20px yellow";
+    }
+    else if (score >= 10000) {
+      auraNome = "Aura Elevada";
+      cor = "orange";
+      brilho = "0 0 20px orange";
+    }
+    else if (score >= 5000) {
+      auraNome = "Aura Despertada";
+      cor = "lime";
+      brilho = "0 0 20px lime";
+    }
+    else if (score >= 1000) {
+      auraNome = "Aura Forte";
+      cor = "#003399";
+      brilho = "0 0 20px #0055ff";
+    }
+    else {
+      if (!egoMode) {
+        s.style.color = "#00ffea";
+        s.style.textShadow = "0 0 10px #00faff";
+        s.innerText = "+" + score + "Aura";
+        return;
+      } else if (!egoSuperior) {
+        s.style.color = "#b300ff";
+        s.style.textShadow = "0 0 20px #b300ff";
+        s.innerText = "+" + score + "Aura+Ego";
+        return;
+      } else {
+        s.style.color = "#ffd700";
+        s.style.textShadow = "0 0 25px white";
+        s.innerText = "+" + score + "Aura+Ego Superior";
+        return;
+      }
+    }
+
+    s.style.color = cor;
+    s.style.textShadow = brilho;
+
+    if (!egoMode)
+      s.innerText = "+" + score + auraNome;
+    else if (!egoSuperior)
+      s.innerText = "+" + score + auraNome + "+Ego";
+    else
+      s.innerText = "+" + score + auraNome + "+Ego Superior";
+  }
+
+  function triggerGameOver() {
+    gameOver = true;
+    document.getElementById("gameover").style.display = "block";
+  }
+
+  function getSafeXPosition(ballSize) {
+    const margin = 10;
+    const maxX = window.innerWidth - ballSize - margin;
+    return Math.random() * (maxX - margin) + margin;
+  }
+
+  function createBall() {
+    if (gameOver) return;
+
+    const ball = document.createElement("div");
+
+    const spawnEgo = (score >= 500 || egoMode) && Math.random() < 0.05;
+    const spawnMorte = Math.random() < 0.05;
+
+    if (spawnMorte) ball.className = "ball-morte";
+    else if (spawnEgo) ball.className = "ball-ego";
+    else ball.className = "ball";
+
+    const ballSize = spawnEgo || spawnMorte ? 85 : 80;
+
+    ball.style.left = getSafeXPosition(ballSize) + "px";
+    ball.style.top = "-100px";
+
+    document.body.appendChild(ball);
+
+    let fallSpeed = spawnEgo
+      ? 12 + Math.random() * 6
+      : 2 + Math.random() * 2;
+
+    const fall = setInterval(() => {
+      if (gameOver) {
+        clearInterval(fall);
+        ball.remove();
+        return;
+      }
+
+      ball.style.top = parseFloat(ball.style.top) + fallSpeed + "px";
+
+      const bottomBarHeight = 80;
+      if (parseFloat(ball.style.top) > window.innerHeight - bottomBarHeight) {
+        clearInterval(fall);
+        ball.remove();
+
+        if (!spawnEgo && !spawnMorte) score -= 10;
+        updateScore();
+      }
+    }, 16);
+
+    ball.onclick = () => {
+      if (gameOver) return;
+
+      clickSound.currentTime = 0;
+      clickSound.play();
+
+      clearInterval(fall);
+      ball.remove();
+
+      if (spawnMorte) {
+        triggerGameOver();
+        return;
+      }
+
+      if (spawnEgo) {
+        score += 100;
+        if (!egoMode) egoMode = true;
+        if (++egoCount >= 10) egoSuperior = true;
+      } else {
+        score += 10;
+      }
+
+      updateScore();
+    };
+  }
+
+  function startSpawning() {
+    createBall();
+    if (!gameOver) {
+      spawnSpeed = Math.max(750, spawnSpeed * spawnAcceleration);
+      setTimeout(startSpawning, spawnSpeed);
+    }
+  }
+
+  function reiniciar() {
+    location.reload();
+  }
+
+  function voltar() {
+    window.location.href = "index.html";
+  }
+
+  updateScore();
+  startSpawning();
+</script>
+
+</body>
+</html>
