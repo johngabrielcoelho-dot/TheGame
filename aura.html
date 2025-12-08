@@ -58,6 +58,16 @@
     text-shadow: 0 0 15px red;
     display: none;
     z-index: 50;
+    text-align: center;
+  }
+
+  /* nova linha para mostrar moedas ganhas e total (invisível durante o jogo) */
+  #coins-earned, #coins-total {
+    display: none;
+    font-size: 28px;
+    margin-top: 12px;
+    color: #ffd700;
+    text-shadow: 0 0 12px gold;
   }
 
   /* ----- ABA INFERIOR ----- */
@@ -226,7 +236,11 @@
 <div id="score">+0Aura</div>
 <div id="highscore">Recorde: 0</div>
 
-<div id="gameover">Você foi Mogado</div>
+<div id="gameover">
+  Você foi Mogado
+  <div id="coins-earned"></div>
+  <div id="coins-total"></div>
+</div>
 
 <!-- ABA INFERIOR -->
 <div id="bottom-bar">
@@ -249,6 +263,10 @@
 <script>
   let score = 0;
   let highscore = Number(localStorage.getItem("highscore")) || 0;
+
+  // 🪙 Recuperar moedas salvas (chave: "moedasTotal")
+  let moedasTotal = Number(localStorage.getItem("moedasTotal")) || 0;
+
   let gameOver = false;
   let paused = false;
   let spawnInterval;
@@ -274,6 +292,9 @@
 
   // MOSTRAR RECORDE CORRETO
   document.getElementById("highscore").innerText = "Recorde: " + highscore;
+
+  // --- Nota: moedas NÃO são exibidas durante o jogo ---
+  // Elas serão mostradas apenas ao FINAL DA RODADA (game over).
 
   function togglePause() {
     if (gameOver) return;
@@ -509,19 +530,41 @@
 
   function triggerGameOver() {
     gameOver = true;
-    gameOverMsg.style.display = "block";
-    
+
+    // Calcular moedas ganhas nesta rodada
+    // Regra: cada 10 de Aura = 0.1 moeda → 1 moeda = 100 aura
+    let moedasGanhas = score / 100;
+    if (moedasGanhas < 0) moedasGanhas = 0;
+    // formatar com 2 casas (opcional)
+    moedasGanhas = Number(moedasGanhas.toFixed(2));
+
+    // Somar ao total já salvo e gravar no localStorage
+    moedasTotal += moedasGanhas;
+    // salvar com duas casas para consistência
+    localStorage.setItem("moedasTotal", Number(moedasTotal.toFixed(2)));
+
     // Mostrar botões de game over
     showGameOverButtons();
-    
+
     // Limpar todas as bolas
     clearAllBalls();
-    
+
     // Fechar janela de pause se estiver aberta
     if (paused) {
       paused = false;
       pauseWindow.style.display = "none";
     }
+
+    // Mostrar mensagens abaixo de "Você foi Mogado"
+    const coinsDiv = document.getElementById("coins-earned");
+    const totalDiv = document.getElementById("coins-total");
+    coinsDiv.style.display = "block";
+    totalDiv.style.display = "block";
+    coinsDiv.innerText = "Moedas ganhas: " + moedasGanhas;
+    totalDiv.innerText = "Total: " + Number(moedasTotal.toFixed(2));
+    
+    // Exibir gameover
+    gameOverMsg.style.display = "block";
   }
 
   function clearAllBalls() {
@@ -530,7 +573,7 @@
       clearInterval(ballData.intervalId);
     });
     activeBalls = [];
-    
+
     // Remover todas as bolas do DOM
     document.querySelectorAll('.ball, .ball-ego, .ball-morte').forEach(ball => {
       ball.remove();
@@ -589,7 +632,7 @@
         if (index > -1) {
           activeBalls.splice(index, 1);
         }
-        
+
         if (!spawnEgo && !spawnMorte) {
           score -= 10;
           updateScore();
@@ -613,7 +656,7 @@
       if (index > -1) {
         activeBalls.splice(index, 1);
       }
-      
+
       ball.remove();
 
       if (spawnMorte) {
