@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editar Aura</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(180deg, #050505, #0a0a0a, #000018);
+        color: white;
+        overflow-x: hidden;
+    }
+
+    /* MOEDAS NO TOPO */
+    #moedas {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 22px;
+        font-weight: bold;
+        border: 2px solid #00eaff;
+        box-shadow: 0 0 12px #00eaff;
+        color: #00eaff;
+        z-index: 10;
+    }
+
+    .cards-container {
+        margin-top: 120px;
+        display: flex;
+        overflow-x: auto;
+        gap: 30px;
+        padding: 20px;
+        scroll-behavior: smooth;
+    }
+
+    .card {
+        min-width: 240px;
+        background: #0d0d0d;
+        padding: 12px;
+        border-radius: 14px;
+        text-align: center;
+        border: 2px solid #7a00ff;
+        box-shadow: 0 0 15px #7a00ff;
+    }
+
+    .card img {
+        width: 220px;
+        height: 220px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid #00eaff;
+        box-shadow: 0 0 12px #00eaff;
+    }
+
+    .card-footer {
+        margin-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .price {
+        font-size: 20px;
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 0 0 8px #ffdd33;
+    }
+
+    button {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: bold;
+        color: white;
+        transition: 0.2s;
+    }
+
+    .comprar {
+        background: #00c853;
+        box-shadow: 0 0 10px #00ff73;
+    }
+
+    .equipar {
+        background: #2979ff;
+        box-shadow: 0 0 10px #3d8bff;
+    }
+
+    .desequipar {
+        background: #b30000;
+        box-shadow: 0 0 10px #ff1a1a;
+    }
+
+    #erroSaldo {
+        position: fixed;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 0, 0, 0.3);
+        color: #ff4d4d;
+        padding: 10px 20px;
+        font-size: 20px;
+        border: 2px solid #ff4d4d;
+        border-radius: 10px;
+        text-shadow: 0 0 10px red;
+        box-shadow: 0 0 15px red;
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+<!-- MOEDAS -->
+<div id="moedas">💰 0</div>
+
+<!-- ERRO DE SALDO -->
+<div id="erroSaldo">Saldo Insuficiente!</div>
+
+<!-- CARDS -->
+<div class="cards-container" id="cardsContainer"></div>
+
+<script>
+    /* LISTA DE GIFS */
+    const gifs = [
+        { id: "g1", src: "Picol.gif", preco: 1 },
+        { id: "g2", src: "Shan.gif", preco: 1 },
+        { id: "g3", src: "Hiso.gif", preco: 1 },
+        { id: "g4", src: "gif4.gif", preco: 300 }
+    ];
+
+    let moedas = parseInt(localStorage.getItem("moedasTotal")) || 0;
+    let compras = JSON.parse(localStorage.getItem("compras")) || {};
+    let equipadoSRC = localStorage.getItem("gifEquipado") || "";
+
+    document.getElementById("moedas").innerText = `💰 ${moedas}`;
+
+    const container = document.getElementById("cardsContainer");
+
+    /* ATUALIZA TODOS OS BOTÕES DE EQUIPAR / DESEQUIPAR */
+    function atualizarBotoes() {
+        const botoes = document.querySelectorAll("button[data-id]");
+
+        botoes.forEach(btn => {
+            const id = btn.dataset.id;
+            const gif = gifs.find(g => g.id === id);
+
+            if (!compras[id]) {
+                btn.className = "comprar";
+                btn.innerText = "Comprar";
+                return;
+            }
+
+            if (equipadoSRC === gif.src) {
+                btn.className = "desequipar";
+                btn.innerText = "Desequipar";
+            } else {
+                btn.className = "equipar";
+                btn.innerText = "Equipar";
+            }
+        });
+    }
+
+    /* CRIAÇÃO DOS CARDS */
+    gifs.forEach(gif => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+
+        const comprou = compras[gif.id] === true;
+
+        let textoBotao = "Comprar";
+        let classeBotao = "comprar";
+
+        if (comprou) {
+            textoBotao = "Equipar";
+            classeBotao = "equipar";
+        }
+
+        if (equipadoSRC === gif.src) {
+            textoBotao = "Desequipar";
+            classeBotao = "desequipar";
+        }
+
+        card.innerHTML = `
+            <img src="${gif.src}">
+            <div class="card-footer">
+                <div class="price">${gif.preco}💰</div>
+                <button 
+                    class="${classeBotao}" 
+                    data-id="${gif.id}"
+                    onclick="acao('${gif.id}')"
+                >
+                    ${textoBotao}
+                </button>
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+
+    atualizarBotoes();
+
+    function mostrarErro() {
+        const msg = document.getElementById("erroSaldo");
+        msg.style.display = "block";
+        setTimeout(() => msg.style.display = "none", 3000);
+    }
+
+    /* FUNÇÃO PRINCIPAL */
+    function acao(id) {
+        const gif = gifs.find(g => g.id === id);
+        const comprou = compras[id] === true;
+
+        /* COMPRAR */
+        if (!comprou) {
+            if (moedas < gif.preco) {
+                mostrarErro();
+                return;
+            }
+
+            moedas -= gif.preco;
+            compras[id] = true;
+
+            localStorage.setItem("moedasTotal", moedas);
+            localStorage.setItem("compras", JSON.stringify(compras));
+
+            document.getElementById("moedas").innerText = `💰 ${moedas}`;
+        } 
+        else {
+            /* SE JÁ COMPROU */
+
+            if (equipadoSRC === gif.src) {
+                // DESEQUIPAR
+                equipadoSRC = "";
+                localStorage.setItem("gifEquipado", "");
+            } else {
+                // EQUIPAR CORRETAMENTE (SALVA O ARQUIVO DO GIF)
+                equipadoSRC = gif.src;
+                localStorage.setItem("gifEquipado", gif.src);
+            }
+        }
+
+        atualizarBotoes();
+    }
+</script>
+
+</body>
+</html>

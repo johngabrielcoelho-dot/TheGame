@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmação de Aura</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #111;
+    font-family: Arial, sans-serif;
+    user-select: none;
+  }
+
+  #bg-gif {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* ------- SCORE E RECORDE ------- */
+  #score, #highscore {
+    position: absolute;
+    left: 10px;
+    font-weight: bold;
+    z-index: 10;
+  }
+
+  #score {
+    top: 10px;
+    font-size: 25px;
+    color: #0ff;
+    text-shadow: 0 0 10px #0ff;
+  }
+
+  #highscore {
+    top: 55px; 
+    font-size: 20px;
+    color: #ffd700;
+    text-shadow: 0 0 15px #ffea00;
+  }
+
+  #gameover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 52px;
+    font-weight: bold;
+    color: red;
+    text-shadow: 0 0 15px red;
+    display: none;
+    z-index: 50;
+    text-align: center;
+  }
+
+  /* nova linha para mostrar moedas ganhas e total (invisível durante o jogo) */
+  #coins-earned, #coins-total {
+    display: none;
+    font-size: 28px;
+    margin-top: 12px;
+    color: #ffd700;
+    text-shadow: 0 0 12px gold;
+  }
+
+  /* ----- ABA INFERIOR ----- */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 80px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 8px;
+    box-sizing: border-box;
+    z-index: 20;
+    gap: 15px;
+  }
+
+  .btn {
+    padding: 12px 22px;
+    background: transparent;
+    border: 2px solid;
+    font-size: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .btn:hover {
+    transform: scale(1.05);
+  }
+
+  .btn-pause { 
+    border-color: #ffea00; 
+    color: #ffea00; 
+    text-shadow: 0 0 10px #ffea00;
+    box-shadow: 0 0 15px #ffea00;
+  }
+
+  .btn-pause:hover {
+    box-shadow: 0 0 25px #ffea00;
+  }
+
+  .btn-restart {
+    border-color: #00ffea;
+    color: #00ffea;
+    text-shadow: 0 0 10px #00ffea;
+    box-shadow: 0 0 15px #00ffea;
+  }
+
+  .btn-restart:hover {
+    box-shadow: 0 0 25px #00ffea;
+  }
+
+  .btn-exit {
+    border-color: #ff3333;
+    color: #ff3333;
+    text-shadow: 0 0 10px #ff3333;
+    box-shadow: 0 0 15px #ff3333;
+  }
+
+  .btn-exit:hover {
+    box-shadow: 0 0 25px #ff3333;
+  }
+
+  /* Classe para esconder elementos */
+  .hidden {
+    display: none !important;
+  }
+
+  /* ------- JANELA DE PAUSE ------- */
+  #pause-window {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 350px;
+    padding: 25px;
+    background: rgba(0,0,0,0.95);
+    border: 3px solid #ffd700;
+    border-radius: 15px;
+    text-align: center;
+    display: none;
+    z-index: 100;
+    box-shadow: 0 0 25px gold;
+    backdrop-filter: blur(5px);
+  }
+
+  #pause-window h2 {
+    color: #ffd700;
+    text-shadow: 0 0 15px gold;
+    margin-bottom: 20px;
+    font-size: 32px;
+  }
+
+  .pause-btn {
+    padding: 14px 26px;
+    margin: 8px 0;
+    width: 90%;
+    font-size: 22px;
+    background: transparent;
+    border: 2px solid;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-shadow: 0 0 8px currentColor;
+  }
+
+  .pause-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px currentColor;
+  }
+
+  .btn-continuar {
+    border-color: #00ff00;
+    color: #00ff00;
+  }
+
+  .btn-reiniciar {
+    border-color: #00ffea;
+    color: #00ffea;
+  }
+
+  .btn-voltar {
+    border-color: #ff3333;
+    color: #ff3333;
+  }
+
+  /* -------- BOLAS -------- */
+  .ball, .ball-ego, .ball-morte {
+    position: absolute;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 5;
+  }
+
+  .ball {
+    width: 85px;
+    height: 85px;
+    background: radial-gradient(circle, #fff, #aaa);
+    box-shadow: 0 0 20px white;
+  }
+
+  .ball-ego {
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle, #b300ff, #5a0096);
+    box-shadow: 0 0 25px #b300ff, 0 0 50px #b300ff;
+  }
+
+  .ball-morte {
+    width: 85px;
+    height: 85px;
+    background: radial-gradient(circle, #ff0000, #7a0000);
+    box-shadow: 0 0 25px red, 0 0 50px red;
+  }
+</style>
+
+</head>
+
+<body>
+
+<img id="bg-gif">
+<script>
+  // Carregar GIF salvo da página editar
+  let gifEquipado = localStorage.getItem("gifEquipado") || "Picol.gif";
+  document.getElementById("bg-gif").src = gifEquipado;
+</script>
+
+<div id="score">+0Aura</div>
+<div id="highscore">Recorde: 0</div>
+
+<div id="gameover">
+  Você foi Mogado
+  <div id="coins-earned"></div>
+  <div id="coins-total"></div>
+</div>
+
+<!-- ABA INFERIOR -->
+<div id="bottom-bar">
+  <!-- Botão de pause (visível durante o jogo) -->
+  <button class="btn btn-pause" id="pause-btn" onclick="togglePause()">❚❚ Pause</button>
+  
+  <!-- Botões de game over (inicialmente escondidos) -->
+  <button class="btn btn-restart hidden" id="restart-btn" onclick="reiniciar()">Reiniciar</button>
+  <button class="btn btn-exit hidden" id="exit-btn" onclick="voltar()">Sair</button>
+</div>
+
+<!-- JANELA DE PAUSE -->
+<div id="pause-window">
+  <h2>Jogo Pausado</h2>
+  <button class="pause-btn btn-continuar" onclick="togglePause()">Continuar</button>
+  <button class="pause-btn btn-reiniciar" onclick="reiniciar()">Reiniciar</button>
+  <button class="pause-btn btn-voltar" onclick="voltar()">Sair</button>
+</div>
+
+<script>
+  let score = 0;
+  let highscore = Number(localStorage.getItem("highscore")) || 0;
+
+  // 🪙 Recuperar moedas salvas (chave: "moedasTotal")
+  let moedasTotal = Number(localStorage.getItem("moedasTotal")) || 0;
+
+  let gameOver = false;
+  let paused = false;
+  let spawnInterval;
+
+  let egoMode = false;
+  let egoSuperior = false;
+  let egoCount = 0;
+
+  let spawnSpeed = 1550;
+  const spawnAcceleration = 0.98;
+
+  const clickSound = new Audio("bub.mp3");
+  
+  // Array para armazenar todas as bolas ativas e seus intervalos
+  let activeBalls = [];
+
+  // Elementos DOM
+  const pauseBtn = document.getElementById('pause-btn');
+  const restartBtn = document.getElementById('restart-btn');
+  const exitBtn = document.getElementById('exit-btn');
+  const gameOverMsg = document.getElementById('gameover');
+  const pauseWindow = document.getElementById('pause-window');
+
+  // MOSTRAR RECORDE CORRETO
+  document.getElementById("highscore").innerText = "Recorde: " + highscore;
+
+  // --- Nota: moedas NÃO são exibidas durante o jogo ---
+  // Elas serão mostradas apenas ao FINAL DA RODADA (game over).
+
+  function togglePause() {
+    if (gameOver) return;
+
+    paused = !paused;
+
+    if (paused) {
+      // Pausar o jogo
+      clearTimeout(spawnInterval);
+      // Pausar todas as bolas ativas
+      pauseAllBalls();
+      // Mostrar janela de pause
+      pauseWindow.style.display = "block";
+    } else {
+      // Continuar o jogo
+      pauseWindow.style.display = "none";
+      // Retomar todas as bolas ativas
+      resumeAllBalls();
+      // Retomar o spawn de novas bolas
+      startSpawning();
+    }
+  }
+
+  function showGameOverButtons() {
+    // Esconder botão de pause
+    pauseBtn.classList.add('hidden');
+    
+    // Mostrar botões de reiniciar e sair
+    restartBtn.classList.remove('hidden');
+    exitBtn.classList.remove('hidden');
+    
+    // Ajustar layout para mostrar dois botões
+    document.getElementById('bottom-bar').style.justifyContent = 'center';
+    document.getElementById('bottom-bar').style.gap = '20px';
+  }
+
+  function showPauseButton() {
+    // Esconder botões de reiniciar e sair
+    restartBtn.classList.add('hidden');
+    exitBtn.classList.add('hidden');
+    
+    // Mostrar botão de pause
+    pauseBtn.classList.remove('hidden');
+    
+    // Ajustar layout para mostrar apenas um botão
+    document.getElementById('bottom-bar').style.justifyContent = 'center';
+  }
+
+  function pauseAllBalls() {
+    // Pausar todos os intervalos das bolas
+    activeBalls.forEach(ballData => {
+      clearInterval(ballData.intervalId);
+    });
+  }
+
+  function resumeAllBalls() {
+    // Reativar todos os intervalos das bolas
+    activeBalls.forEach(ballData => {
+      if (!ballData.element.parentElement) return; // Se a bola foi removida, ignorar
+      
+      const ball = ballData.element;
+      const fallSpeed = ballData.fallSpeed;
+      const ballDataRef = ballData;
+      
+      // Recriar o intervalo para esta bola
+      ballDataRef.intervalId = setInterval(() => {
+        if (gameOver || paused) return;
+
+        ball.style.top = parseFloat(ball.style.top) + fallSpeed + "px";
+
+        const bottomBarHeight = 80;
+        if (parseFloat(ball.style.top) > window.innerHeight - bottomBarHeight) {
+          clearInterval(ballDataRef.intervalId);
+          ball.remove();
+          // Remover esta bola do array
+          const index = activeBalls.indexOf(ballDataRef);
+          if (index > -1) {
+            activeBalls.splice(index, 1);
+          }
+          
+          // Verificar se é bola especial
+          const isEgo = ball.classList.contains('ball-ego');
+          const isMorte = ball.classList.contains('ball-morte');
+          
+          if (!isEgo && !isMorte) {
+            score -= 10;
+            updateScore();
+          }
+        }
+      }, 16);
+    });
+  }
+
+  function updateHighscore() {
+    if (score > highscore) {
+      highscore = score;
+      localStorage.setItem("highscore", highscore);
+      document.getElementById("highscore").innerText = "Recorde: " + highscore;
+    }
+  }
+
+  function updateScore() {
+    const s = document.getElementById("score");
+
+    updateHighscore();
+
+    if (score < 0) {
+      s.style.color = "red";
+      s.style.textShadow = "0 0 10px red, 0 0 20px #ff4d4d";
+      s.innerText = score + "Aura";
+      if (score <= -100 && !gameOver) triggerGameOver();
+      return;
+    }
+
+    if (score >= 1000000) {
+      const msg = document.getElementById("gameover");
+      msg.innerText = "AURA DEFINITIVA";
+      msg.style.color = "#ffd700";
+      msg.style.textShadow = "0 0 20px gold, 0 0 40px yellow";
+      msg.style.display = "block";
+
+      gameOver = true;
+      showGameOverButtons(); // Mostrar botões de game over
+      s.style.color = "#ffd700";
+      s.style.textShadow = "0 0 25px gold";
+      s.innerText = "+1.000.000Aura Definitiva";
+      return;
+    }
+
+    let auraNome = "";
+    let cor = "";
+    let brilho = "";
+
+    if (score >= 195000) {
+      auraNome = "Aura Absoluta";
+      cor = "#ffd700";
+      brilho = "0 0 20px gold";
+    }
+    else if (score >= 180000) {
+      auraNome = "Aura Divina";
+      cor = "#ffd700";
+      brilho = "0 0 25px #fff000";
+    }
+    else if (score >= 165000) {
+      auraNome = "Aura Suprema";
+      cor = "red";
+      brilho = "0 0 20px red";
+    }
+    else if (score >= 150000) {
+      auraNome = "Aura Titânica";
+      cor = "orange";
+      brilho = "0 0 20px orange";
+    }
+    else if (score >= 140000) {
+      auraNome = "Aura Descomunal";
+      cor = "#0011aa";
+      brilho = "0 0 25px #0044ff";
+    }
+    else if (score >= 130000) {
+      auraNome = "Aura Colossal";
+      cor = "#8000ff";
+      brilho = "0 0 25px #a200ff";
+    }
+    else if (score >= 120000) {
+      auraNome = "Aura Mítica";
+      cor = "#d9d9d9";
+      brilho = "0 0 25px white";
+    }
+    else if (score >= 110000) {
+      auraNome = "Aura Lendária";
+      cor = "#ff66cc";
+      brilho = "0 0 25px #ff99dd";
+    }
+    else if (score >= 100000) {
+      auraNome = "Aura Extrema";
+      cor = "#66ccff";
+      brilho = "0 0 25px #99ddff";
+    }
+    else if (score >= 50000) {
+      auraNome = "Aura Máxima";
+      cor = "red";
+      brilho = "0 0 20px red";
+    }
+    else if (score >= 20000) {
+      auraNome = "Aura Superior";
+      cor = "yellow";
+      brilho = "0 0 20px yellow";
+    }
+    else if (score >= 10000) {
+      auraNome = "Aura Elevada";
+      cor = "orange";
+      brilho = "0 0 20px orange";
+    }
+    else if (score >= 5000) {
+      auraNome = "Aura Despertada";
+      cor = "lime";
+      brilho = "0 0 20px lime";
+    }
+    else if (score >= 1000) {
+      auraNome = "Aura Forte";
+      cor = "#003399";
+      brilho = "0 0 20px #0055ff";
+    }
+    else {
+      if (!egoMode) {
+        s.style.color = "#00ffea";
+        s.style.textShadow = "0 0 10px #00faff";
+        s.innerText = "+" + score + "Aura";
+        return;
+      } else if (!egoSuperior) {
+        s.style.color = "#b300ff";
+        s.style.textShadow = "0 0 20px #b300ff";
+        s.innerText = "+" + score + "Aura+Ego";
+        return;
+      } else {
+        s.style.color = "#ffd700";
+        s.style.textShadow = "0 0 25px white";
+        s.innerText = "+" + score + "Aura+Ego Superior";
+        return;
+      }
+    }
+
+    s.style.color = cor;
+    s.style.textShadow = brilho;
+
+    if (!egoMode)
+      s.innerText = "+" + score + auraNome;
+    else if (!egoSuperior)
+      s.innerText = "+" + score + auraNome + "+Ego";
+    else
+      s.innerText = "+" + score + auraNome + "+Ego Superior";
+  }
+
+  function triggerGameOver() {
+    gameOver = true;
+
+    // Calcular moedas ganhas nesta rodada
+    // Regra: cada 10 de Aura = 0.1 moeda → 1 moeda = 100 aura
+    let moedasGanhas = score / 100;
+    if (moedasGanhas < 0) moedasGanhas = 0;
+    // formatar com 2 casas (opcional)
+    moedasGanhas = Number(moedasGanhas.toFixed(2));
+
+    // Somar ao total já salvo e gravar no localStorage
+    moedasTotal += moedasGanhas;
+    // salvar com duas casas para consistência
+    localStorage.setItem("moedasTotal", Number(moedasTotal.toFixed(2)));
+
+    // Mostrar botões de game over
+    showGameOverButtons();
+
+    // Limpar todas as bolas
+    clearAllBalls();
+
+    // Fechar janela de pause se estiver aberta
+    if (paused) {
+      paused = false;
+      pauseWindow.style.display = "none";
+    }
+
+    // Mostrar mensagens abaixo de "Você foi Mogado"
+    const coinsDiv = document.getElementById("coins-earned");
+    const totalDiv = document.getElementById("coins-total");
+    coinsDiv.style.display = "block";
+    totalDiv.style.display = "block";
+    coinsDiv.innerText = "Moedas ganhas: " + moedasGanhas;
+    totalDiv.innerText = "Total: " + Number(moedasTotal.toFixed(2));
+    
+    // Exibir gameover
+    gameOverMsg.style.display = "block";
+  }
+
+  function clearAllBalls() {
+    // Limpar todos os intervalos
+    activeBalls.forEach(ballData => {
+      clearInterval(ballData.intervalId);
+    });
+    activeBalls = [];
+
+    // Remover todas as bolas do DOM
+    document.querySelectorAll('.ball, .ball-ego, .ball-morte').forEach(ball => {
+      ball.remove();
+    });
+  }
+
+  function getSafeXPosition(ballSize) {
+    const margin = 10;
+    const maxX = window.innerWidth - ballSize - margin;
+    return Math.random() * (maxX - margin) + margin;
+  }
+
+  function createBall() {
+    if (gameOver || paused) return;
+
+    const ball = document.createElement("div");
+
+    const spawnEgo = (score >= 500 || egoMode) && Math.random() < 0.05;
+    const spawnMorte = Math.random() < 0.05;
+
+    if (spawnMorte) ball.className = "ball-morte";
+    else if (spawnEgo) ball.className = "ball-ego";
+    else ball.className = "ball";
+
+    const ballSize = spawnEgo || spawnMorte ? 85 : 80;
+
+    ball.style.left = getSafeXPosition(ballSize) + "px";
+    ball.style.top = "-100px";
+
+    document.body.appendChild(ball);
+
+    let fallSpeed = spawnEgo
+      ? 12 + Math.random() * 6
+      : 2 + Math.random() * 2;
+
+    const ballData = {
+      element: ball,
+      fallSpeed: fallSpeed,
+      intervalId: null,
+      isEgo: spawnEgo,
+      isMorte: spawnMorte
+    };
+
+    // Criar o intervalo para esta bola
+    ballData.intervalId = setInterval(() => {
+      if (gameOver || paused) return;
+
+      ball.style.top = parseFloat(ball.style.top) + fallSpeed + "px";
+
+      const bottomBarHeight = 80;
+      if (parseFloat(ball.style.top) > window.innerHeight - bottomBarHeight) {
+        clearInterval(ballData.intervalId);
+        ball.remove();
+        // Remover esta bola do array
+        const index = activeBalls.indexOf(ballData);
+        if (index > -1) {
+          activeBalls.splice(index, 1);
+        }
+
+        if (!spawnEgo && !spawnMorte) {
+          score -= 10;
+          updateScore();
+        }
+      }
+    }, 16);
+
+    // Adicionar ao array de bolas ativas
+    activeBalls.push(ballData);
+
+    ball.onclick = () => {
+      if (gameOver || paused) return;
+
+      clickSound.currentTime = 0;
+      clickSound.play();
+
+      // Remover o intervalo desta bola
+      clearInterval(ballData.intervalId);
+      // Remover do array de bolas ativas
+      const index = activeBalls.indexOf(ballData);
+      if (index > -1) {
+        activeBalls.splice(index, 1);
+      }
+
+      ball.remove();
+
+      if (spawnMorte) {
+        triggerGameOver();
+        return;
+      }
+
+      if (spawnEgo) {
+        score += 100;
+        if (!egoMode) egoMode = true;
+        if (++egoCount >= 10) egoSuperior = true;
+      } else {
+        score += 10;
+      }
+
+      updateScore();
+    };
+  }
+
+  function startSpawning() {
+    if (gameOver || paused) return;
+
+    createBall();
+    if (!gameOver && !paused) {
+      spawnSpeed = Math.max(750, spawnSpeed * spawnAcceleration);
+      spawnInterval = setTimeout(startSpawning, spawnSpeed);
+    }
+  }
+
+  function reiniciar() {
+    // Limpar todos os intervalos antes de recarregar
+    clearTimeout(spawnInterval);
+    clearAllBalls();
+    location.reload();
+  }
+
+  function voltar() {
+    // Limpar todos os intervalos antes de sair
+    clearTimeout(spawnInterval);
+    clearAllBalls();
+    window.location.href = "index.html";
+  }
+
+  // Inicializar o jogo
+  updateScore();
+  startSpawning();
+</script>
+
+</body>
+</html>
